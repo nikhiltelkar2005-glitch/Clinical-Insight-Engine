@@ -47,7 +47,12 @@ export class DatabaseStorage implements IStorage {
     const db = getDb();
     const [created] = await db
       .insert(assessments)
-      .values(assessment)
+      .values({
+        ...assessment,
+        bmi: String(assessment.bmi),
+        hba1cLevel: String(assessment.hba1cLevel),
+        bloodGlucoseLevel: String(assessment.bloodGlucoseLevel)
+      })
       .returning();
     return created;
   }
