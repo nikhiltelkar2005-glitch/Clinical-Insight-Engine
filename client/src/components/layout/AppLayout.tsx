@@ -53,10 +53,15 @@ export function AppLayout({ children }: AppLayoutProps) {
         <div className="flex h-full w-full flex-col justify-between">
           <div>
             <div className="p-6 flex items-center gap-3 border-b border-slate-100 dark:border-gray-800">
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/15">
+              <Link
+                href="/dashboard"
+                className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/15 hover:opacity-95 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                aria-label="Go to main dashboard"
+                title="Go to main dashboard"
+              >
                 <HeartPulse className="w-6 h-6" />
                 <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white dark:border-gray-900 bg-emerald-400" />
-              </div>
+              </Link>
               <div className="flex-1 min-w-0">
                 <h1 className="text-lg font-black leading-tight text-[#1E293B] dark:text-gray-100 truncate">Clinical Insight</h1>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Preventive Risk Tool</p>
