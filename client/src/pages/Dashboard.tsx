@@ -101,17 +101,24 @@ export default function Dashboard() {
           credentials: "include",
           body: JSON.stringify(parsedForPreview.data),
           signal: controller.signal,
-    try {
-      const raw = localStorage.getItem("clinical-insight-assessment-draft");
-      if (!raw) return;
-      const draft = JSON.parse(raw);
-      if (draft) {
-        Object.entries(draft).forEach(([k, v]) => {
-          try {
-            // @ts-ignore
-            setValue(k as any, v, { shouldDirty: true });
-          } catch (e) {}
         });
+
+        const raw = localStorage.getItem("clinical-insight-assessment-draft");
+        if (raw) {
+          try {
+            const draft = JSON.parse(raw);
+            if (draft) {
+              Object.entries(draft).forEach(([k, v]) => {
+                try {
+                  // @ts-ignore
+                  setValue(k as any, v, { shouldDirty: true });
+                } catch (e) {}
+              });
+            }
+          } catch {
+            // ignore draft parse errors
+          }
+        }
 
         const data = await response.json();
 
