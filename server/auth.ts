@@ -10,24 +10,12 @@ import { rateLimit } from "express-rate-limit";
 declare module "express-session" {
   interface SessionData {
     user?: {
+      id: string;
       email: string;
       name: string;
     };
   }
 }
-
-interface RegisteredUser {
-  fullName: string;
-  email: string;
-  password: string;
-  licenseNumber: string;
-}
-
-/**
- * In-memory store for registered users.
- * In production, this should be replaced with a persistent database.
- */
-const registeredUsers = new Map<string, RegisteredUser>();
 
 interface PendingOtp {
   otp: string;
@@ -121,7 +109,8 @@ export function createAuthRouter(): Router {
       return res.status(400).json({ message: "Password must be at least 8 characters." });
     }
 
-    if (registeredUsers.has(email)) {
+    const existing = await storage.getUserByEmail(email);
+    if (existing) {
       return res.status(409).json({ message: "An account with this email already exists." });
     }
 
@@ -140,8 +129,8 @@ export function createAuthRouter(): Router {
     registeredUsers.set(email, {
       fullName,
       email,
-      passwordHash: hashPassword(password),
-      licenseNumber
+      passwordHash,
+      medicalLicenseNumber: licenseNumber,
     });
 
       // Create DB user
@@ -199,10 +188,10 @@ export function createAuthRouter(): Router {
     const devEmail = process.env.DEV_CLINICIAN_EMAIL || "";
     const devPassword = process.env.DEV_CLINICIAN_PASSWORD || "";
 
-    let userName: string | null = null;
+    let userFullName: string | null = null;
 
     if (email === devEmail && password === devPassword) {
-      userName = "Dr. Smith";
+      userFullName = "Dr. Smith";
     } else {
       // Check in-memory store (legacy)
       const registeredUser = registeredUsers.get(email);
@@ -230,7 +219,7 @@ export function createAuthRouter(): Router {
       }
     }
 
-    if (!userName) {
+    if (!userFullName) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
@@ -252,7 +241,7 @@ export function createAuthRouter(): Router {
    * POST /api/auth/verify-otp
    * Verifies the OTP sent after login/register and establishes a session.
    */
-  router.post("/verify-otp", (req: Request, res: Response) => {
+  router.post("/verify-otp", async (req: Request, res: Response) => {
     const { email, otp } = req.body || {};
 
     if (!email || !otp) {
@@ -276,13 +265,26 @@ export function createAuthRouter(): Router {
 
     pendingOtps.delete(email);
 
-    const registeredUser = registeredUsers.get(email);
     const devEmail = process.env.DEV_CLINICIAN_EMAIL || "";
-    const name = email === devEmail ? "Dr. Smith" : (registeredUser?.fullName ?? email);
 
-    req.session.user = { email, name };
+    let id: string;
+    let name: string;
 
-    return res.json({ success: true, user: { email, name } });
+    if (email === devEmail) {
+      name = "Dr. Smith";
+      id = "dev";
+    } else {
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "User not found." });
+      }
+      id = user.id;
+      name = user.fullName;
+    }
+
+    req.session.user = { id, email, name };
+
+    return res.json({ success: true, user: { id, email, name } });
   });
 
   // ─── Email Verification (DB-backed) ────────────────────────────────────
