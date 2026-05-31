@@ -135,13 +135,16 @@ export function createAuthRouter(): Router {
       if (existingDbUser) {
         return res.status(409).json({ message: "An account with this email already exists." });
       }
+
       const passwordHash = hashPassword(password);
-    registeredUsers.set(email, {
-      fullName,
-      email,
-      passwordHash,
-      licenseNumber,
-    });
+
+      registeredUsers.set(email, {
+        fullName,
+        email,
+        passwordHash,
+        licenseNumber,
+      });
+
 
       // Create DB user
       const [newUser] = await db
@@ -212,33 +215,37 @@ export function createAuthRouter(): Router {
 
         if (dbUser && verifyPassword(password, dbUser.passwordHash)) {
           userFullName = dbUser.fullName;
-      // Check in-memory store (legacy)
-      const registeredUser = registeredUsers.get(email);
-      if (registeredUser && verifyPassword(password, registeredUser.passwordHash)) {
-        userFullName = registeredUser.fullName;
-      }
-
-      // Also check DB
-      if (!userFullName) {
-        try {
-          const db = getDb();
-          const [dbUser] = await db
-            .select()
-            .from(users)
-            .where(eq(users.email, email))
-            .limit(1);
-
-          if (dbUser && verifyPassword(password, dbUser.passwordHash)) {
-            userFullName = dbUser.fullName;
-          }
-        } catch (err) {
-          // DB not available — fall back to in-memory only
-          console.warn("DB unavailable for login, using in-memory only.");
         }
-      } catch (err) {
+
+        // Check in-memory store (legacy)
+        const registeredUser = registeredUsers.get(email);
+        if (registeredUser && verifyPassword(password, registeredUser.passwordHash)) {
+          userFullName = registeredUser.fullName;
+        }
+
+        // Also check DB (fallback)
+        if (!userFullName) {
+          try {
+            const db = getDb();
+            const [dbUser] = await db
+              .select()
+              .from(users)
+              .where(eq(users.email, email))
+              .limit(1);
+
+            if (dbUser && verifyPassword(password, dbUser.passwordHash)) {
+              userFullName = dbUser.fullName;
+            }
+          } catch (_err) {
+            // DB not available — fall back to in-memory only
+            console.warn("DB unavailable for login, using in-memory only.");
+          }
+        }
+      } catch (_err) {
         console.warn("DB unavailable for login.");
       }
     }
+
 
     if (!userFullName) {
       return res.status(401).json({ message: "Invalid email or password." });

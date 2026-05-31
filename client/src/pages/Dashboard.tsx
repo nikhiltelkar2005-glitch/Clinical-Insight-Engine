@@ -257,9 +257,9 @@ export default function Dashboard() {
                     <div className="mt-4 space-y-4">
                       <div className="space-y-2">
                         <label className={labelClass}>Gender</label>
-                        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
-                          {["Male", "Female"].map((g) => (
-                        <div className={`grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1 transition-all duration-200 ${errors.gender ? "ring-2 ring-red-500 bg-red-50/30" : ""}`}>
+                        <div
+                          className={`grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1 transition-all duration-200 ${errors.gender ? "ring-2 ring-red-500 bg-red-50/30" : ""}`}
+                        >
                           {["Male", "Female", "Other"].map((g) => (
                             <label key={g} className="flex-1 cursor-pointer">
                               <input type="radio" value={g} {...register("gender")} className="peer sr-only" />
@@ -271,6 +271,7 @@ export default function Dashboard() {
                         </div>
                         {errors.gender && <p className="text-sm text-red-600 mt-1">{errors.gender.message}</p>}
                       </div>
+
 
                       <div className="space-y-2">
                         <div className="flex items-center gap-1.5">

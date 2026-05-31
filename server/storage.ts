@@ -1,5 +1,6 @@
 import { getDb } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+
 import {
   assessments,
   users,
@@ -9,7 +10,9 @@ import {
   type User,
   type InsertUser
 } from "@shared/schema";
-import { and, desc, eq } from "drizzle-orm";
+
+
+
 
 
 
@@ -41,16 +44,50 @@ export class DatabaseStorage implements IStorage {
   ): Promise<Assessment[]> {
     const db = getDb();
 
-    const filters: any[] = [];
-    if (createdBy) {
-      filters.push(eq(assessments.createdBy, createdBy));
-    }
+    // Compatibility: allow running even if the assessments table doesn't have created_by.
+    // Keep createdBy arg unused for now.
+    void createdBy;
 
+    const filters: any[] = [];
+
+
+
+
+    // Avoid selecting non-existent columns (e.g., created_by in older DB states)
+    // by explicitly selecting only columns known to exist in migrations.
     const query = db
-      .select()
+      .select({
+        id: assessments.id,
+        gender: assessments.gender,
+        age: assessments.age,
+        hypertension: assessments.hypertension,
+        heartDisease: (assessments as any).heartDisease ?? (assessments as any).heart_disease,
+        smokingHistory:
+          (assessments as any).smokingHistory ?? (assessments as any).smoking_history,
+        bmi: assessments.bmi,
+        hba1cLevel:
+          (assessments as any).hba1cLevel ?? (assessments as any).hba1c_level,
+        bloodGlucoseLevel:
+          (assessments as any).bloodGlucoseLevel ?? (assessments as any).blood_glucose_level,
+        riskScore:
+          (assessments as any).riskScore ?? (assessments as any).risk_score,
+        riskCategory:
+          (assessments as any).riskCategory ?? (assessments as any).risk_category,
+        factors: assessments.factors,
+        confidenceInterval:
+          (assessments as any).confidenceInterval ?? (assessments as any).confidence_interval,
+        modelConfidence:
+          (assessments as any).modelConfidence ?? (assessments as any).model_confidence,
+        createdAt:
+          (assessments as any).createdAt ?? (assessments as any).created_at,
+      })
       .from(assessments)
-      .orderBy(desc(assessments.createdAt))
+      .orderBy(desc((assessments as any).createdAt ?? (assessments as any).created_at))
       .$dynamic();
+
+
+
+
 
     if (filters.length > 0) {
       return await query.where(and(...filters)).limit(limit).offset(offset);
