@@ -1,8 +1,8 @@
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAssessments } from "@/hooks/use-assessments";
 import { format, isValid } from "date-fns";
-import { Loader2, Search, Calendar, User, Activity, X } from "lucide-react";
-import { useState } from "react";
+import { Loader2, Search, Calendar, User, Activity } from "lucide-react";
+import { useState, useEffect } from "react";
 import StatusPill from "@/components/ui/StatusPill";
 import ConfidenceRange from "@/components/ui/ConfidenceRange";
 import { FileText, RotateCw } from "lucide-react";
@@ -31,6 +31,10 @@ function HighlightText({ text, search }: { text: string; search: string }) {
 }
 
 export default function History() {
+  useEffect(() => {
+    document.title = "Clinical Insight Engine - Assessment History";
+  }, []);
+
   const { data: assessments, isLoading, error } = useAssessments();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<string>("date-desc");

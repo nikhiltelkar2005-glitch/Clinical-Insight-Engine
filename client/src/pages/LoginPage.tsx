@@ -8,11 +8,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("rememberedEmail");
-    if (saved) {
-      setEmail(saved);
-      setRememberMe(true);
-    }
+    document.title = "Clinical Insight Engine - Sign In";
   }, []);
   const [, setLocation] = useLocation();
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
