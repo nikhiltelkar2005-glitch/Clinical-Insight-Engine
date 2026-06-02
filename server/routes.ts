@@ -261,7 +261,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const { stdout } = await execFileAsync(
             getPythonExecutable(),
             [analyzePyPath, "predict_file", tempFile],
-            { timeout: 30000 },
+            {
+              timeout: 30000,
+              // 10MB buffer to safely handle verbose Python stdout
+              // (scikit-learn/numpy deprecation warnings, model loading logs)
+              // without crashing with ERR_CHILD_PROCESS_STDIO_MAXBUFFER.
+              maxBuffer: 10 * 1024 * 1024,
+            }
           );
 
           prediction = JSON.parse(stdout.trim());
@@ -331,7 +337,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           const { stdout } = await execFileAsync(
             getPythonExecutable(),
             [analyzePyPath, "predict_file", tempFile],
-            { timeout: 30000 },
+            {
+              timeout: 30000,
+              // 10MB buffer to safely handle verbose Python stdout
+              // (scikit-learn/numpy deprecation warnings, model loading logs)
+              // without crashing with ERR_CHILD_PROCESS_STDIO_MAXBUFFER.
+              maxBuffer: 10 * 1024 * 1024,
+            }
           );
 
           prediction = JSON.parse(stdout.trim());
