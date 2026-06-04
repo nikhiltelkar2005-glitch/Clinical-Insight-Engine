@@ -1,5 +1,8 @@
 import type { Express } from "express";
 import type { Server } from "http";
+import authRouter from "./routes/auth.routes";
+import assessmentsRouter from "./routes/assessments.routes";
+import { seedDatabase } from "./utils/seed";
 import { storage, type AssessmentCreateInput } from "./storage";
 import { requireAuth, requireAdmin, requireVerified } from "./auth";
 import { api } from "@shared/routes";
@@ -684,6 +687,9 @@ export async function registerRoutes(
     seedDatabase().catch(console.error);
   }
 
+  // Mount domain-specific routers
+  app.use("/api/auth", authRouter);
+  app.use("/api/assessments", assessmentsRouter);
   // Issue a JWT token for the currently authenticated session user
   app.get("/api/auth/token", requireAuth, requireVerified, (req, res) => {
     // Session is guaranteed by requireAuth
