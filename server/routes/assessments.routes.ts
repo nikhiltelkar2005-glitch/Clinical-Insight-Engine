@@ -87,7 +87,7 @@ assessmentsRouter.post(
 
     try {
       const input = req.body;
-      requestFingerprint = MLService.generateRequestFingerprint(input, userId);
+      const requestFingerprint = MLService.generateRequestFingerprint(input, userId);
 
       if (MLService.activeInferenceRequests.has(requestFingerprint)) {
         return res.status(409).json({
@@ -115,17 +115,9 @@ assessmentsRouter.post(
             ? undefined
             : Number(prediction.modelConfidence),
         createdBy: userId,
-      const input = api.assessments.create.input.parse(req.body);
-      
-      const job = await assessmentQueue.add("predict", {
-        input,
-        userId
       });
 
-      return res.status(202).json({
-        message: "Assessment request accepted and is being processed.",
-        jobId: job.id
-      });
+      return res.status(201).json(assessment);
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         return res
