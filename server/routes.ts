@@ -1,6 +1,7 @@
 import mlRouter from "./routes/ml.routes";
 import exportsRouter from "./routes/exports.routes";
 import analyticsRouter from "./routes/analytics.routes";
+import uploadRouter from "./routes/upload.routes";
 import type { Express } from "express";
 import type { Server } from "http";
 import authRouter from "./routes/auth.routes";
@@ -415,13 +416,13 @@ export async function registerRoutes(
     requireVerified,
     previewLimiter,
     async (req, res) => {
-      let tempFile: string | undefined;
+      const input = api.assessments.preview.input.parse(req.body);
+      const tempFile = path.join(
+        os.tmpdir(),
+        `${randomUUID()}.json`
+      );
+
       try {
-        const input = api.assessments.preview.input.parse(req.body);
-        tempFile = path.join(
-          os.tmpdir(),
-          `${randomUUID()}.json`
-        );
         await writeFile(tempFile, JSON.stringify(input));
 
         let prediction;
@@ -465,12 +466,10 @@ export async function registerRoutes(
         logger.error({ err }, "Error creating assessment preview");
         return res.status(500).json({ message: "Internal server error" });
       } finally {
-        if (tempFile) {
-          try {
-            await unlink(tempFile);
-          } catch (e) {
-            logger.warn("Failed to clean up temp file (preview):", tempFile, e);
-          }
+        try {
+          await unlink(tempFilePath);
+        } catch (e) {
+          logger.warn("Failed to clean up temp file (preview):", tempFilePath, e);
         }
       }
     }
@@ -616,80 +615,7 @@ export async function registerRoutes(
     }
   );
 
-  app.post(
-    "/api/assessments/bulk",
-    requireAuth,
-    requireVerified,
-    async (req, res) => {
-      const userId = (req.session.user as any)?.id;
-      if (!userId) {
-        return res.status(401).json({ message: "Authentication required." });
-      }
 
-      const inputSchema = z.array(api.assessments.create.input);
-      let tempFilePath: string | null = null;
-      let requestFingerprint: string | null = null;
-
-      try {
-        const input = inputSchema.parse(req.body.assessments);
-        
-        requestFingerprint = generateRequestFingerprint(input, userId);
-        if (activeInferenceRequests.has(requestFingerprint)) {
-          return res.status(409).json({ message: "Bulk request already processing." });
-        }
-        activeInferenceRequests.add(requestFingerprint);
-
-        tempFilePath = path.join(os.tmpdir(), `bulk_${randomUUID()}.json`);
-        await writeFile(tempFilePath, JSON.stringify(input));
-
-        let predictions: any[];
-        try {
-          const { stdout } = await execFileAsync(
-            getPythonExecutable(),
-            [analyzePyPath, "predict_file", tempFilePath],
-            { timeout: 60000, maxBuffer: 50 * 1024 * 1024 }
-          );
-
-          predictions = JSON.parse(stdout.trim());
-          if (!Array.isArray(predictions)) {
-            throw new Error("Expected array of predictions");
-          }
-        } catch (error: any) {
-          return res.status(500).json({ message: "Bulk ML processing failed or timed out." });
-        }
-
-        const createdAssessments = await Promise.all(
-          input.map((assessment, index) => {
-            const prediction = predictions[index];
-            return storage.createAssessment({
-              ...assessment,
-              riskScore: Number(prediction.riskScore),
-              riskCategory: prediction.riskCategory,
-              factors: prediction.factors,
-              confidenceInterval: prediction.confidenceInterval ?? null,
-              modelConfidence: prediction.modelConfidence == null ? undefined : Number(prediction.modelConfidence),
-              createdBy: userId,
-            });
-          })
-        );
-
-        return res.status(201).json({ count: createdAssessments.length, assessments: createdAssessments });
-      } catch (err) {
-        if (err instanceof z.ZodError) {
-          return res.status(400).json({ message: "Invalid bulk input data format. Ensure all rows meet schema requirements." });
-        }
-        logger.error("Bulk create error:", err);
-        return res.status(500).json({ message: "Failed to generate bulk assessments." });
-      } finally {
-        if (tempFilePath) {
-          try { await unlink(tempFilePath); } catch {}
-        }
-        if (requestFingerprint) {
-          activeInferenceRequests.delete(requestFingerprint);
-        }
-      }
-    }
-  );
 
   app.get(api.assessments.list.path, requireAuth, requireVerified, async (req, res) => {
     try {
@@ -1617,5 +1543,6 @@ export async function registerRoutes(
     }
   });
 
+  app.use("/api/upload", uploadRouter);
   return httpServer;
 }
