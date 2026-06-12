@@ -6,8 +6,12 @@ import { rateLimit } from "express-rate-limit";
 import { requireAuth, requireVerified } from "../auth";
 import { api } from "@shared/routes";
 import { storage } from "../storage";
+<<<<<<< HEAD
+import { MLService, isPythonAvailable, calculateClinicalFallback } from "../services/mlService";
+=======
 import { MLService, calculateClinicalFallback } from "../services/mlService";
 import { assessmentLimiter, previewLimiter } from "../middleware/rateLimit";
+>>>>>>> 63d29afa01cbf3b34bd8d95bbba2bfd44c2338a2
 import { generateRecommendations } from "../services/recommendation-engine";
 import {
   sanitizeDatabaseError,
@@ -35,7 +39,7 @@ function getPythonExecutable() {
     process.platform === "win32"
       ? [ path.resolve(".venv", "Scripts", "python.exe"), path.resolve("venv", "Scripts", "python.exe") ]
       : [ path.resolve(".venv", "bin", "python"), path.resolve("venv", "bin", "python") ];
-  return candidates.find((candidate) => existsSync(candidate)) ?? "python3";
+  return candidates.find((candidate) => existsSync(candidate)) ?? (process.platform === "win32" ? "python" : "python3");
 }
 
 const assessmentsRouter = Router();
@@ -134,6 +138,32 @@ assessmentsRouter.post(
     try {
       const parsed = api.assessments.whatIfBatch.input.parse(req.body);
       const { original, perturbations } = parsed;
+
+      if (!isPythonAvailable) {
+        const originalResult = calculateClinicalFallback(original);
+        const perturbationResults = perturbations.map(p => {
+          const variant = { ...original, ...p };
+          const variantResult = calculateClinicalFallback(variant);
+          const riskReduction = originalResult.riskScore - variantResult.riskScore;
+          const desc = Object.keys(p).map(k => `${k}:${(original as any)[k] ?? '?'}->${(p as any)[k]}`).join("; ");
+          return {
+            delta: desc,
+            riskScore: variantResult.riskScore,
+            riskCategory: variantResult.riskCategory,
+            factors: variantResult.factors ?? [],
+            riskReduction: Number(riskReduction.toFixed(1)),
+            confidenceInterval: variantResult.confidenceInterval,
+            modelConfidence: variantResult.modelConfidence,
+          };
+        }).sort((a, b) => b.riskReduction - a.riskReduction);
+        
+        return res.json({
+          original: originalResult,
+          perturbations: perturbationResults,
+          ranked: perturbationResults,
+          isFallback: true
+        });
+      }
 
       const payload = { original, perturbations };
       await writeFile(tempFile, JSON.stringify(payload));

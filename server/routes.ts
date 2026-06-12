@@ -11,6 +11,20 @@ import { MLService, generateRequestFingerprint, calculateClinicalFallback, getPy
 import { storage, type AssessmentCreateInput } from "./storage";
 import { requireAuth, requireAdmin, requireVerified } from "./auth";
 import bcrypt from "bcrypt";
+<<<<<<< HEAD
+import { api } from "@shared/routes";
+import { z } from "zod";
+import os from "os";
+import { randomUUID } from "crypto";
+import { writeFile, unlink } from "fs/promises";
+import { validateDTO } from "./middleware/validateDTO";
+import { calculateClinicalFallback, generateRequestFingerprint } from "./services/mlService";
+import { canAccessPatientRecord } from "./services/authz/patient-access";
+import { logAccessAttempt } from "./security/access-audit";
+import { sanitizeDatabaseError, analyzeSearchInput, logSecurityEvent } from "./security/sqlProtection";
+import { searchQuerySchema } from "./validation/searchValidation";
+import { assessmentsToCsv } from "./utils/csvExport";
+=======
 import { logger } from "./logger";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -30,6 +44,7 @@ import { searchQuerySchema } from "./validation/searchValidation";
 import { analyzeSearchInput, logSecurityEvent, sanitizeDatabaseError } from "./security/sqlProtection";
 import { canAccessPatientRecord } from "./services/authz/patient-access";
 import { logAccessAttempt } from "./security/access-audit";
+>>>>>>> 63d29afa01cbf3b34bd8d95bbba2bfd44c2338a2
 
 function execFileAsync(file: string, args: string[], options: { timeout: number; maxBuffer?: number }): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {

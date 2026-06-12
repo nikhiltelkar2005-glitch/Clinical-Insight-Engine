@@ -79,8 +79,24 @@ export function getPythonExecutable() {
           path.resolve("venv", "bin", "python"),
         ];
 
-  return candidates.find((candidate) => existsSync(candidate)) ?? "python3";
+  return candidates.find((candidate) => existsSync(candidate)) ?? (process.platform === "win32" ? "python" : "python3");
 }
+
+export let isPythonAvailable = true;
+
+export function checkPythonAvailability() {
+  execFile(getPythonExecutable(), ["--version"], { timeout: 2000 }, (error) => {
+    if (error) {
+      logger.warn("Python executable not found or unresponsive. Falling back to clinical rule-based model globally.");
+      isPythonAvailable = false;
+    } else {
+      isPythonAvailable = true;
+    }
+  });
+}
+
+// Start the check immediately
+checkPythonAvailability();
 
 export interface PredictionResult {
   riskScore: number;
@@ -238,11 +254,21 @@ export function calculateClinicalFallback(input: unknown): any {
   };
 }
 
+<<<<<<< HEAD
+export async function runAssessmentInference(input: unknown): Promise<{ prediction: PredictionResult, isFallback: boolean }> {
+  if (!isPythonAvailable) {
+    return { prediction: calculateClinicalFallback(input), isFallback: true };
+  }
+
+  const release = await mlConcurrency.acquire();
+  const tempFilePath = path.join(os.tmpdir(), `${randomUUID()}.json`);
+=======
 interface PendingRequest {
   resolve: (value: PredictionResult) => void;
   reject: (reason: any) => void;
   timeoutId: NodeJS.Timeout;
 }
+>>>>>>> 63d29afa01cbf3b34bd8d95bbba2bfd44c2338a2
 
 class PythonDaemonManager {
   private process: ChildProcess | null = null;
