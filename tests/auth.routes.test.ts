@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import express from "express";
 import session from "express-session";
-import { createAuthRouter } from "../server/auth";
+import { createAuthRouter, pendingOtps } from "../server/auth";
 
 // Mock rate limiting to prevent test blocks
 vi.mock("express-rate-limit", () => {
@@ -97,6 +97,18 @@ describe("Auth Router - Resend OTP integration tests", () => {
     it("resends OTP for existing user", async () => {
       mockSelectDbUser([{ id: "user-1", emailVerified: true }]);
       mockTransactionSuccess();
+
+      const res = await request(app)
+        .post("/api/auth/resend-otp")
+        .send({ email: "user-1@clinic.com", mode: "login" });
+
+      expect(res.status).toBe(400);
+      expect(res.body).toHaveProperty(
+        "message",
+        "No pending verification found for this email. Please sign in again."
+      );
+    });
+
     it("returns 400 when no pending OTP exists for the email", async () => {
       const res = await request(app)
         .post("/api/auth/resend-otp")
@@ -138,11 +150,11 @@ describe("Auth Router - Resend OTP integration tests", () => {
       try {
         const res = await request(app)
           .post("/api/auth/resend-otp")
-          .send({ email: "existing@clinic.com", mode: "login" });
+          .send({ email: "valid@clinic.com", mode: "login" });
 
         expect(res.status).toBe(200);
         expect(res.body).toHaveProperty("success", true);
-        expect(res.body).toHaveProperty("pendingEmail", "existing@clinic.com");
+        expect(res.body).toHaveProperty("pendingEmail", "valid@clinic.com");
         expect(res.body).not.toHaveProperty("devOtp");
         expect(mockSendVerificationEmail).toHaveBeenCalledTimes(1);
       } finally {

@@ -10,7 +10,7 @@ import { users, emailVerificationTokens, passwordResetTokens } from "@shared/sch
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { logger } from "./logger";
 import { validateDTO } from "./middleware/validateDTO";
-import { registerDTOSchema, loginDTOSchema, forgotPasswordDTOSchema, resetPasswordDTOSchema, verifyEmailDTOSchema } from "./validation/auth.dto";
+import { registerDTOSchema, loginDTOSchema, forgotPasswordDTOSchema, resetPasswordDTOSchema, verifyEmailDTOSchema, verifyOtpDTOSchema } from "./validation/auth.dto";
 
 function hashPassword(password: string): string {
   return bcrypt.hashSync(password, 10);
@@ -43,12 +43,6 @@ interface RegisteredUser {
   licenseNumber: string;
 }
 
-export function getOtpRateLimitKey({ body, ip }: { body: { email?: string }; ip: string }): string {
-  if (body.email) {
-    return `otp:${body.email.toLowerCase().trim()}`;
-  }
-  return `otp:${ip}`;
-}
 
 /**
  * Strict rate limiter for sensitive endpoints (e.g., registration).
@@ -112,10 +106,6 @@ function generateOtp(): string {
 
 export const pendingOtps = new Map<string, { otp: string; expiresAt: number }>();
 
-export function getOtpRateLimitKey(req: { body: { email?: string }; ip: string }): string {
-  const email = req.body?.email?.trim().toLowerCase();
-  return email ? `otp:${email}` : `otp:${req.ip}`;
-}
 
 function logDevOtp(email: string, otp: string) {
   if (process.env.NODE_ENV !== "production") {
@@ -123,17 +113,6 @@ function logDevOtp(email: string, otp: string) {
   }
 }
 
-/**
- * Generates a rate-limit key for OTP requests.
- * Keys by normalized email when available, falls back to client IP.
- */
-export function getOtpRateLimitKey(req: { body: { email?: string }; ip: string }): string {
-  const email = req.body?.email?.toString().trim().toLowerCase();
-  if (email) {
-    return `otp:${email}`;
-  }
-  return `otp:ip:${req.ip}`;
-}
 
 function regenerateSession(req: Request): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -421,6 +400,7 @@ export function createAuthRouter(): Router {
    */
   router.post("/resend-otp", resendLimiter, async (req: Request, res: Response) => {
     const email = (req.body?.email ?? "").trim().toLowerCase();
+    const mode = req.body?.mode;
 
     if (!email) {
       return res.status(400).json({ message: "Email is required." });
@@ -443,7 +423,7 @@ export function createAuthRouter(): Router {
         }
 
         pendingOtps.set(email, { otp, expiresAt: expiresAt.getTime(), attempts: 0 });
-        const emailSent = await sendVerificationCode(email, otp);
+        const emailSent = await sendVerificationEmail(email, otp);
         if (!emailSent) {
           return res.status(503).json({ message: "Failed to send verification email. Please try again." });
         }
@@ -501,7 +481,7 @@ export function createAuthRouter(): Router {
    * POST /api/auth/verify-otp
    * Verifies the OTP sent after login/register and establishes a session.
    */
-  router.post("/verify-otp", otpLimiter, validateDTO(verifyOtpDTOSchema), async (req: Request, res: Response) => {
+  router.post("/verify-otp", verifyEmailLimiter, validateDTO(verifyOtpDTOSchema), async (req: Request, res: Response) => {
     const { email, otp } = req.body;
 
     const pending = pendingOtps.get(email);

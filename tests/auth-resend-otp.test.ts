@@ -5,6 +5,11 @@ import session from "express-session";
 import { eq } from "drizzle-orm";
 import { users } from "../server/db/schema";
 
+vi.mock("express-rate-limit", () => {
+  const rateLimit = () => (req: any, res: any, next: any) => next();
+  return { rateLimit, default: rateLimit };
+});
+
 const { mockSendVerificationEmail } = vi.hoisted(() => ({
   mockSendVerificationEmail: vi.fn().mockResolvedValue(true),
 }));
@@ -22,7 +27,7 @@ const mockDb = {
 };
 
 vi.mock("../server/db", () => ({
-  getDb: () => mockDb,
+  getDb: vi.fn(() => mockDb),
 }));
 
 vi.mock("../server/storage", () => ({
@@ -87,9 +92,15 @@ describe("POST /api/auth/resend-otp", () => {
       transaction: vi.fn(),
     });
     const app = await buildApp();
-    const res = await request(app)
+    return request(app)
       .post("/api/auth/resend-otp")
-      .send({ email: "noone@clinic.com", mode: "login" });
+      .send({ email: "noone@clinic.com", mode: "login" })
+      .expect(400)
+      .expect((res) => {
+        expect(res.body.message).toMatch(/No pending verification found/i);
+      });
+  });
+
   it("returns 404 when user is not found in database", async () => {
     const mockLimit = vi.fn().mockResolvedValue([]);
     const mockWhere = vi.fn(() => ({ limit: mockLimit }));
@@ -124,7 +135,7 @@ describe("POST /api/auth/resend-otp", () => {
     const app = await buildApp();
     const res = await request(app)
       .post("/api/auth/resend-otp")
-      .send({ email: "test@clinic.com", mode: "login" });
+      .send({ email: "test@clinic.com", mode: "register" });
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty("success", true);
     expect(res.body).toHaveProperty("pendingEmail");
