@@ -39,6 +39,10 @@ export const api = {
         200: z.object({
           data: z.array(z.custom<typeof assessments.$inferSelect>()),
           nextCursor: z.number().nullable(),
+          total: z.number().optional(),
+          page: z.number().optional(),
+          limit: z.number().optional(),
+          totalPages: z.number().optional(),
         }),
       },
     },
