@@ -87,6 +87,7 @@ export const api = {
           ),
           confidenceInterval: z.string().nullable().optional(),
           modelConfidence: z.number().nullable().optional(),
+          isFallback: z.boolean().optional(),
           recommendations: z
             .array(
               z.object({
@@ -170,6 +171,29 @@ export const api = {
         500: errorSchemas.internal,
       },
     },
+    whatIf: {
+      method: "POST" as const,
+      path: "/api/assessments/what-if" as const,
+      input: insertAssessmentSchema,
+      responses: {
+        200: z.any(),
+        400: errorSchemas.validation,
+        500: errorSchemas.internal,
+      },
+    },
+    whatIfBatch: {
+      method: "POST" as const,
+      path: "/api/assessments/what-if/batch" as const,
+      input: z.object({
+        original: z.any(),
+        perturbations: z.array(z.record(z.any()))
+      }),
+      responses: {
+        200: z.any(),
+        400: errorSchemas.validation,
+        500: errorSchemas.internal,
+      },
+    },
     biomarkerAlerts: {
       method: "GET" as const,
       path: "/api/assessments/biomarker-alerts" as const,
@@ -247,6 +271,29 @@ export type AttentionPriority = {
   priority: "high" | "moderate" | "monitor";
   reason: string;
   value?: number;
+};
+
+export type BiomarkerAlert = {
+  biomarker: "HbA1c" | "Blood Glucose" | "BMI";
+  trend: "increasing" | "decreasing" | "stable";
+  severity: "warning" | "info";
+  message: string;
+  values: Array<{ ts?: string; value: number }>;
+};
+
+export type AssessmentWhatIfResponse = {
+  simulatedRisk: number;
+  riskCategory: "LOW" | "MODERATE" | "HIGH";
+  confidence?: number | null;
+  factors?: Array<{ name: string; impact: "positive" | "negative"; description: string }>;
+  isFallback?: boolean;
+};
+
+export type AssessmentWhatIfBatchResponse = {
+  original: any;
+  perturbations: any[];
+  ranked: any[];
+  isFallback?: boolean;
 };
 
 export type AttentionNavigator = {
