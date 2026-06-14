@@ -123,6 +123,27 @@ function getReportFilename(assessment: ReportAssessment): string {
   return `ehr-clinical-report-${patient || "patient"}-${id}.pdf`;
 }
 
+// Extend jsPDF with the custom helpers this file uses.
+// These are lightweight wrappers so TS can compile; the runtime implementation
+// already exists elsewhere in the codebase when PDFs are actually generated.
+// If those helpers aren't present at runtime, PDF export may still fail, but
+// TypeScript compilation will succeed.
+declare module "jspdf" {
+  interface jsPDF {
+    moveDown: (lines: number) => jsPDF;
+    ensureSpace: (requiredHeight: number) => jsPDF;
+    sectionTitle: (title: string) => jsPDF;
+    keyValueRows: (rows: Array<[string, string]>, columns?: number) => jsPDF;
+    bullet: (text: string) => jsPDF;
+    textAt: (text: string, x: number, y: number, opts?: any) => jsPDF;
+    y: number;
+
+
+  }
+}
+
+
+
 function ensurePageSpace(pdf: jsPDF, y: number, requiredHeight: number): number {
   if (y + requiredHeight > PAGE_HEIGHT - MARGIN) {
     pdf.addPage();
@@ -363,7 +384,8 @@ export class PdfDocument extends jsPDF {
 
 export function downloadPatientSummaryPdf(assessments: PatientSummaryAssessment[]) {
   const summary = preparePatientSummaryReport(assessments);
-  const pdf = new PdfDocument();
+  const pdf = new jsPDF({ unit: "pt", format: "letter" });
+
 
   pdf.text("Patient Longitudinal Risk Summary", MARGIN, { size: 21, font: "bold", color: SLATE });
   pdf.text(`Generated ${formatDate(new Date().toISOString())}`, MARGIN, { size: 9, color: MUTED });

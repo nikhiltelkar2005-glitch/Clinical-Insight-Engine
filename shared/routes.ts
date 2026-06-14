@@ -39,6 +39,8 @@ export const api = {
         200: z.object({
           data: z.array(z.custom<typeof assessments.$inferSelect>()),
           nextCursor: z.number().nullable(),
+          // Some UI components expect pagination metadata.
+          // Backend may omit these; they are optional for type-safety.
           total: z.number().optional(),
           page: z.number().optional(),
           limit: z.number().optional(),
@@ -54,6 +56,9 @@ export const api = {
         200: z.object({
           data: z.array(z.custom<typeof assessments.$inferSelect>()),
           nextCursor: z.number().nullable(),
+          // Optional pagination metadata
+          total: z.number().optional(),
+          totalPages: z.number().optional(),
         }),
         400: errorSchemas.validation,
         401: errorSchemas.validation,
@@ -87,6 +92,7 @@ export const api = {
           ),
           confidenceInterval: z.string().nullable().optional(),
           modelConfidence: z.number().nullable().optional(),
+          // present in some responses
           isFallback: z.boolean().optional(),
           recommendations: z
             .array(
@@ -176,7 +182,22 @@ export const api = {
       path: "/api/assessments/what-if" as const,
       input: insertAssessmentSchema,
       responses: {
-        200: z.any(),
+        200: z.object({
+          simulatedRisk: z.number(),
+          riskCategory: z.enum(["LOW", "MODERATE", "HIGH"]),
+          factors: z
+            .array(
+              z.object({
+                name: z.string(),
+                impact: z.enum(["positive", "negative"]),
+                description: z.string(),
+              })
+            )
+            .optional(),
+          confidenceInterval: z.string().nullable().optional(),
+          modelConfidence: z.number().nullable().optional(),
+          isFallback: z.boolean().optional(),
+        }),
         400: errorSchemas.validation,
         500: errorSchemas.internal,
       },
@@ -185,11 +206,16 @@ export const api = {
       method: "POST" as const,
       path: "/api/assessments/what-if/batch" as const,
       input: z.object({
-        original: z.any(),
-        perturbations: z.array(z.record(z.any()))
+        original: insertAssessmentSchema,
+        perturbations: z.array(z.record(z.any())),
       }),
       responses: {
-        200: z.any(),
+        200: z.object({
+          original: z.any(),
+          perturbations: z.array(z.any()),
+          ranked: z.array(z.any()).optional(),
+          isFallback: z.boolean().optional(),
+        }),
         400: errorSchemas.validation,
         500: errorSchemas.internal,
       },
@@ -229,10 +255,18 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
 }
 
 export type AssessmentInput = z.infer<typeof api.assessments.create.input>;
+
 export type PredictionAdvice = {
   clinicianAdvice?: string[];
   patientAdvice?: string[];
 };
+
+export type BiomarkerAlert = z.infer<
+  (typeof api.assessments.biomarkerAlerts.responses)[200]
+>["alerts"][number];
+
+export type AssessmentWhatIfResponse = z.infer<typeof api.assessments.whatIf.responses[200]>;
+export type AssessmentWhatIfBatchResponse = z.infer<typeof api.assessments.whatIfBatch.responses[200]>;
 
 export type QualityAlert = {
   severity: "warning" | "info";
@@ -273,29 +307,6 @@ export type AttentionPriority = {
   value?: number;
 };
 
-export type BiomarkerAlert = {
-  biomarker: "HbA1c" | "Blood Glucose" | "BMI";
-  trend: "increasing" | "decreasing" | "stable";
-  severity: "warning" | "info";
-  message: string;
-  values: Array<{ ts?: string; value: number }>;
-};
-
-export type AssessmentWhatIfResponse = {
-  simulatedRisk: number;
-  riskCategory: "LOW" | "MODERATE" | "HIGH";
-  confidence?: number | null;
-  factors?: Array<{ name: string; impact: "positive" | "negative"; description: string }>;
-  isFallback?: boolean;
-};
-
-export type AssessmentWhatIfBatchResponse = {
-  original: any;
-  perturbations: any[];
-  ranked: any[];
-  isFallback?: boolean;
-};
-
 export type AttentionNavigator = {
   priorities: AttentionPriority[];
 };
@@ -314,6 +325,8 @@ export type AssessmentResponse = z.infer<typeof api.assessments.create.responses
   qualityAlerts?: QualityAlert[];
   attentionNavigator?: AttentionNavigator;
 };
+
 export type AssessmentsListResponse = z.infer<typeof api.assessments.list.responses[200]>;
 export type AssessmentPreviewResponse = z.infer<typeof api.assessments.preview.responses[200]>;
 export type AssessmentSimulationResponse = z.infer<typeof api.assessments.simulate.responses[200]>;
+

@@ -189,9 +189,6 @@ export async function registerRoutes(
 
   // Mount auth router
   app.use("/api/auth", authRouter);
-  app.use("/api/assessments", mlRouter);
-  app.use("/api/assessments", exportsRouter);
-  app.use("/api", analyticsRouter);
   app.post(
     api.assessments.preview.path,
     requireAuth,
@@ -686,6 +683,7 @@ export async function registerRoutes(
   // Mount domain-specific routers (after app-level handlers for precedence)
   app.use("/api/assessments", mlRouter);
   app.use("/api/assessments", exportsRouter);
+  app.use("/api/assessments", analyticsRouter);
   app.use("/api/assessments", generalLimiter, assessmentsRouter);
 
   // ─── Admin Routes ────────────────────────────────────────────────

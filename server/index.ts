@@ -43,9 +43,9 @@ const allowedOrigins = process.env.CORS_ORIGINS
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Reject requests with no origin to prevent CORS bypass
+    // Allow requests with no origin (browser initial load, Vite HMR, curl)
     if (!origin) {
-      return callback(new Error("CORS: Origin header is required"), false);
+      return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
