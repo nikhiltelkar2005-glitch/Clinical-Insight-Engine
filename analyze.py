@@ -545,7 +545,6 @@ class AssessmentInput(BaseModel):
 def validate_assessment_input(data):
     if not isinstance(data, dict):
         raise ValueError("Input must be an object")
-    
     validated = AssessmentInput.model_validate(data)
     return validated.model_dump(exclude_unset=True)
 
