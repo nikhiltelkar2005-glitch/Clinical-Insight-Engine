@@ -11,6 +11,7 @@ import {
 import { AppLayout } from "@/components/layout/AppLayout";
 import { EmptyState } from "@/components/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ApiClient } from "@/lib/apiClient";
 
 const COLORS = {
   LOW: "#10b981",
@@ -42,13 +43,11 @@ export default function CohortDiscovery() {
     return p.toString();
   }, [applied]);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error }: any = useQuery({
     queryKey: ["/api/assessments/cohort", queryString],
     queryFn: async () => {
       if (!queryString) return null;
-      const res = await fetch(`/api/assessments/cohort?${queryString}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch cohort data");
-      return res.json();
+      return ApiClient.get(`/api/assessments/cohort?${queryString}`);
     },
   });
 

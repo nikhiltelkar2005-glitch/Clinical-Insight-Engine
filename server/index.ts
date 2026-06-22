@@ -132,10 +132,10 @@ app.use((_req, res, next) => {
 });
 
 // Security headers via helmet
-const scriptSrcDirective: Array<string | ((req: Request, res: Response) => string)> = [
+const scriptSrcDirective = [
   "'self'",
-  (_req: Request, res: Response) => `'nonce-${res.locals.cspNonce}'`,
-];
+  (_req: any, res: any) => `'nonce-${res.locals.cspNonce}'`,
+] as any;
 
 
 
