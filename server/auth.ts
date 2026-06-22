@@ -673,11 +673,12 @@ out
       }
 
       const passwordHash = hashPassword(newPassword);
-
-      await authRepository.consumePasswordResetToken(resetToken.id, resetToken.userId, passwordHash);
-
+      await authRepository.claimPasswordResetToken(token, passwordHash);
       return res.json({ success: true, message: "Password has been reset successfully." });
-    } catch (err) {
+    } catch (err: any) {
+      if (err.statusCode === 400) {
+        return res.status(400).json({ message: err.message });
+      }
       logger.error({ err }, "Reset password error:");
       return res.status(500).json({ message: "Failed to reset password." });
     }
